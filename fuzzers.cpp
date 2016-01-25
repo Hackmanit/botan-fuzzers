@@ -191,7 +191,7 @@ int fuzz_x509_crl(const uint8_t in[], size_t len)
    try
       {
       DataSource_Memory input(in, len);
-      X509_Certificate cert(input);
+      X509_CRL crl(input);
       }
    catch(Botan::Exception&) {}
 
