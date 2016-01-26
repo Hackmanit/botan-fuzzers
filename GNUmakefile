@@ -1,5 +1,5 @@
 
-FUZZERS=tls_client tls_server x509_cert x509_crl redc_p256 redc_p384 bn_square ecc_mul_p256 ecc_mul_p384 ecc_mul_p521
+FUZZERS=tls_client tls_server x509_cert x509_crl pkcs8_load redc_p256 redc_p384 bn_square ecc_mul_p256 ecc_mul_p384 ecc_mul_p521
 
 BOTAN_DIR=botan
 
