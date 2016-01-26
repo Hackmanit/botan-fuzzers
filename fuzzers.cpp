@@ -204,8 +204,7 @@ int fuzz_pkcs8_load(const uint8_t in[], size_t len)
       {
       System_RNG rng;
       DataSource_Memory input(in, len);
-      Private_Key *key = PKCS8::load_key(input, rng);
-      delete key;
+      std::unique_ptr<Botan::Private_Key> key(PKCS8::load_key(input, rng));
       }
    catch(Botan::Exception&) {}
 
