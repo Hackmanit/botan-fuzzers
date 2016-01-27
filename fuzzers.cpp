@@ -198,6 +198,19 @@ int fuzz_x509_crl(const uint8_t in[], size_t len)
    return 0;
    }
 
+int fuzz_pkcs8_load(const uint8_t in[], size_t len)
+   {
+   try
+      {
+      System_RNG rng;
+      DataSource_Memory input(in, len);
+      std::unique_ptr<Botan::Private_Key> key(PKCS8::load_key(input, rng));
+      }
+   catch(Botan::Exception&) {}
+
+   return 0;
+   }
+
 const char* fixed_rsa_key =
    "-----BEGIN PRIVATE KEY-----\n"
    "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCe6qqpMQVJ7zCJ\n"
