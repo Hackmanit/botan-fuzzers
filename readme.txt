@@ -29,15 +29,18 @@ make run_afl_tls_client
 
 You can pass args to LLVM using args=
 
-make args=-max_len=96 run_llvm_redc_p384
+make args=-max_len=4000 run_llvm_tls_client
 
-The fuzzer entry point assumes no more than 4K of input.
+The fuzzer entry point assumes no more than 4K of input. The base
+libFuzzer default max len is 64 bytes, the makefile sets it to 128 as
+default.
 
-Run
+Use
 
-make cmin_llvm_redc_p384
+make cmin_redc_p384
 
-to use afl-cmin to minimize and merge the LLVM and AFL outputs back to the corpus
+to run afl-cmin to minimize and merge the LLVM and AFL outputs back to
+the corpus
 
 TODO:
 

@@ -20,26 +20,28 @@
 
 using namespace Botan;
 
-int fuzz_redc_p256(const uint8_t in[], size_t len)
+int helper_nist_redc(const uint8_t in[], size_t len,
+                     const BigInt& prime,
+                     const BigInt& prime2,
+                     std::function<void (BigInt&, secure_vector<word>&)> redc_fn)
    {
-   if(len > 64)
+   if(len > prime.bytes() * 2)
       return 0;
 
    Botan::BigInt x = Botan::BigInt::decode(in, len);
 
-   const BigInt& p = Botan::prime_p256();
-
-   if(x >= p*p)
+   if(x >= prime2)
       return 0;
 
-   Botan::Modular_Reducer p_redc(p);
+   Botan::Modular_Reducer p_redc(prime);
 
-   const Botan::BigInt v1 = x % p;
+   const Botan::BigInt v1 = x % prime;
    const Botan::BigInt v2 = p_redc.reduce(x);
 
    Botan::BigInt v3 = x;
    Botan::secure_vector<Botan::word> ws;
-   Botan::redc_p256(v3, ws);
+   redc_fn(v3, ws);
+   redc_fn(v3, ws);
 
    if(v1 != v2 || v2 != v3)
       {
@@ -49,34 +51,36 @@ int fuzz_redc_p256(const uint8_t in[], size_t len)
    return 0;
    }
 
+int fuzz_redc_p224(const uint8_t in[], size_t len)
+   {
+   static const BigInt& prime = Botan::prime_p224();
+   static const BigInt p2 = prime * prime;
+
+   return helper_nist_redc(in, len, prime, p2, Botan::redc_p224);
+   }
+
+int fuzz_redc_p256(const uint8_t in[], size_t len)
+   {
+   static const BigInt& prime = Botan::prime_p256();
+   static const BigInt p2 = prime * prime;
+
+   return helper_nist_redc(in, len, prime, p2, Botan::redc_p256);
+   }
+
 int fuzz_redc_p384(const uint8_t in[], size_t len)
    {
-   if(len > 96)
-      return 0;
+   static const BigInt& prime = Botan::prime_p384();
+   static const BigInt p2 = prime * prime;
 
-   Botan::BigInt x = Botan::BigInt::decode(in, len);
+   return helper_nist_redc(in, len, prime, p2, Botan::redc_p384);
+   }
 
-   const BigInt& p = Botan::prime_p384();
-   const BigInt p2 = p*p;
+int fuzz_redc_p521(const uint8_t in[], size_t len)
+   {
+   static const BigInt& prime = Botan::prime_p521();
+   static const BigInt p2 = prime * prime;
 
-   if(x >= p*p)
-      return 0;
-
-   Botan::Modular_Reducer p_redc(p);
-
-   const Botan::BigInt v1 = x % p;
-   const Botan::BigInt v2 = p_redc.reduce(x);
-
-   Botan::BigInt v3 = x;
-   Botan::secure_vector<Botan::word> ws;
-   Botan::redc_p384(v3, ws);
-
-   if(v1 != v2 || v2 != v3)
-      {
-      __builtin_trap();
-      }
-
-   return 0;
+   return helper_nist_redc(in, len, prime, p2, Botan::redc_p521);
    }
 
 int fuzz_ecc_points(const char* group_name, size_t group_size,
@@ -94,7 +98,7 @@ int fuzz_ecc_points(const char* group_name, size_t group_size,
    const Botan::BigInt b = Botan::BigInt::decode(in + len/2, len/2);
    const Botan::BigInt c = a + b;
 
-#if 0
+#if 1
    const Botan::PointGFp P = base_point * a;
    const Botan::PointGFp Q = base_point * b;
    const Botan::PointGFp R = base_point * c;
@@ -126,8 +130,7 @@ int fuzz_ecc_points(const char* group_name, size_t group_size,
       __builtin_trap();
 #endif
 
-
-#if 0
+#if 1
    if(!P.on_the_curve())
       __builtin_trap();
 
@@ -172,6 +175,82 @@ int fuzz_bn_square(const uint8_t in[], size_t len)
       }
 
    return 0;
+   }
+
+int fuzz_ressol(const uint8_t in[], size_t len)
+   {
+   if(len % 2 != 0)
+      return 0;
+
+   try
+      {
+      const BigInt a = BigInt::decode(in, len / 2);
+      const BigInt n = BigInt::decode(in + len / 2, len / 2);
+
+      BigInt a_sqrt = ressol(a, n);
+
+      if(a_sqrt > 0)
+         {
+         /*
+         * If n is not prime then the result of ressol will be bogus. But
+         * this function is exposed to untrusted inputs (via OS2ECP) so
+         * should not hang or crash even with composite modulus.
+         * If the result is incorrect, check if n is a prime: if it is
+         * then z != a is a bug.
+         */
+         BigInt z = (a_sqrt * a_sqrt) % n;
+
+         if(z != a % n)
+            {
+            if(is_prime(n, system_rng(), 64))
+               {
+               std::cout << "A = " << a << "\n";
+               std::cout << "Ressol = " << a_sqrt << "\n";
+               std::cout << "N = " << n << "\n";
+               std::cout << "Z = " << z << "\n";
+               __builtin_trap();
+               }
+            }
+         }
+      }
+   catch(Botan::Exception& e) {}
+
+   return 0;
+   }
+
+int helper_os2ecp(const uint8_t in[], size_t len, const CurveGFp& curve)
+   {
+   try
+      {
+      PointGFp point = OS2ECP(in, len, curve);
+      }
+   catch(Botan::Exception& e) {}
+
+   return 0;
+   }
+
+int fuzz_os2ecp_p256(const uint8_t in[], size_t len)
+   {
+   static Botan::EC_Group group("secp256r1");
+   return helper_os2ecp(in, len, group.get_curve());
+   }
+
+int fuzz_os2ecp_p384(const uint8_t in[], size_t len)
+   {
+   static Botan::EC_Group group("secp384r1");
+   return helper_os2ecp(in, len, group.get_curve());
+   }
+
+int fuzz_os2ecp_p521(const uint8_t in[], size_t len)
+   {
+   static Botan::EC_Group group("secp521r1");
+   return helper_os2ecp(in, len, group.get_curve());
+   }
+
+int fuzz_os2ecp_bp512(const uint8_t in[], size_t len)
+   {
+   static Botan::EC_Group group("brainpool512r1");
+   return helper_os2ecp(in, len, group.get_curve());
    }
 
 int fuzz_x509_cert(const uint8_t in[], size_t len)
@@ -460,6 +539,11 @@ int fuzz_tls_server(const uint8_t in[], size_t len)
    return 0;
    }
 
+void fuzzer_init()
+   {
+   ::setenv("BOTAN_MLOCK_POOL_SIZE", "0", 1);
+   }
+
 #if defined(USE_LLVM_FUZZER)
 
 // Called by main() in libFuzzer
@@ -467,6 +551,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t in[], size_t len)
    {
    return FUZZER_POINT(in, len);
    }
+
+int LLVMFuzzerInitialize(int *argc, char ***argv) {
+  fuzzer_init();
+  return 0;
+}
 
 #else
 
@@ -476,6 +565,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t in[], size_t len)
 
 int main(int argc, char* argv[])
    {
+   fuzzer_init();
+
    std::vector<uint8_t> buf(4096); // max read
 
 #if defined(__AFL_LOOP)

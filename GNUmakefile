@@ -1,5 +1,9 @@
 
-FUZZERS=tls_client tls_server x509_cert x509_crl pkcs8_load redc_p256 redc_p384 bn_square ecc_mul_p256 ecc_mul_p384 ecc_mul_p521
+FUZZERS=tls_client tls_server x509_cert x509_crl pkcs8_load \
+        bn_square ressol \
+        os2ecp_p256 os2ecp_p384 os2ecp_p521 os2ecp_bp512 \
+        redc_p224 redc_p256 redc_p384 redc_p521 \
+        ecc_mul_p256 ecc_mul_p384 ecc_mul_p521
 
 BOTAN_DIR=botan
 
@@ -27,11 +31,13 @@ bin/llvm_fuzz_%: $(SOURCES) libFuzzer.a
 bin/afl_fuzz_%: $(SOURCES)
 	$(AFL_CXX) $(SOURCES) $(AFL_FLAGS) -DFUZZER_POINT=$(subst bin/afl_,,$@) -o $@
 
+# libFuzzer default is max_len 64 this sets 128 but allows override via args=
+
 run_llvm_%: bin/llvm_fuzz_%
 	$(eval FUZZER = $(subst bin/llvm_fuzz_,,$<))
 	mkdir -p output/$(FUZZER)/llvm/queue
 	mkdir -p output/$(FUZZER)/llvm/outputs
-	$< -artifact_prefix=output/$(FUZZER)/llvm/outputs/ output/$(FUZZER)/llvm/queue corpus/$(FUZZER) $(args)
+	$< -max_len=128 -artifact_prefix=output/$(FUZZER)/llvm/outputs/ output/$(FUZZER)/llvm/queue corpus/$(FUZZER) $(args)
 
 run_afl_%: bin/afl_fuzz_%
 	$(eval FUZZER = $(subst bin/afl_fuzz_,,$<))
