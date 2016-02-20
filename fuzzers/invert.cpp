@@ -3,6 +3,9 @@
 
 BigInt inverse_mod_ref(const BigInt& n, const BigInt& mod)
    {
+   if(n == 0)
+      return 0;
+
    BigInt u = mod, v = n;
    BigInt B = 0, D = 1;
 
@@ -44,16 +47,30 @@ BigInt inverse_mod_ref(const BigInt& n, const BigInt& mod)
 void fuzz(const uint8_t in[], size_t len)
    {
    const BigInt x = BigInt::decode(in, len / 2);
-   const BigInt mod = BigInt::decode(in + len / 2, len / 2);
+   BigInt mod = BigInt::decode(in + len / 2, len / 2);
 
    mod.set_bit(0);
 
-   BigInt ct = ct_inverse_mod_odd_modulus(x, mod);
-   BigInt monty = normalized_montgomery_inverse(x, mod);
+   if(mod < 3 || x >= mod)
+      return;
 
    BigInt ref = inverse_mod_ref(x, mod);
+   BigInt ct = ct_inverse_mod_odd_modulus(x, mod);
+   //BigInt mon = normalized_montgomery_inverse(x, mod);
 
-   FUZZER_ASSERT_EQUAL(ct, ref);
-   FUZZER_ASSERT_EQUAL(monty, ref);
+   if(ref != ct)
+      {
+      std::cout << "X = " << x << "\n";
+      std::cout << "P = " << mod << "\n";
+      std::cout << "GCD = " << gcd(x, mod) << "\n";
+      std::cout << "Ref = " << ref << "\n";
+      std::cout << "CT  = " << ct << "\n";
+      //std::cout << "Mon = " << mon << "\n";
+
+      std::cout << "RefCheck = " << (ref*ref)%mod << "\n";
+      std::cout << "CTCheck  = " << (ct*ct)%mod << "\n";
+      //std::cout << "MonCheck = " << (mon*mon)%mod << "\n";
+      abort();
+      }
    }
 
