@@ -1,5 +1,5 @@
 diff --git a/src/lib/cert/x509/x509_obj.cpp b/src/lib/cert/x509/x509_obj.cpp
-index e908e8c..93bd62d 100644
+index 983be40..d7287da 100644
 --- a/src/lib/cert/x509/x509_obj.cpp
 +++ b/src/lib/cert/x509/x509_obj.cpp
 @@ -197,9 +197,13 @@ bool X509_Object::check_signature(const Public_Key& pub_key) const
@@ -17,7 +17,7 @@ index e908e8c..93bd62d 100644
     catch(std::exception&)
        {
 diff --git a/src/lib/pubkey/rsa/rsa.cpp b/src/lib/pubkey/rsa/rsa.cpp
-index 57fab94..205e94c 100644
+index e125860..6a0563b 100644
 --- a/src/lib/pubkey/rsa/rsa.cpp
 +++ b/src/lib/pubkey/rsa/rsa.cpp
 @@ -49,6 +49,8 @@ RSA_PrivateKey::RSA_PrivateKey(RandomNumberGenerator& rng,
@@ -30,12 +30,12 @@ index 57fab94..205e94c 100644
        return false;
  
 diff --git a/src/lib/tls/msg_cert_verify.cpp b/src/lib/tls/msg_cert_verify.cpp
-index be6c8a0..58f9a93 100644
+index 0d157dc..439d7ce 100644
 --- a/src/lib/tls/msg_cert_verify.cpp
 +++ b/src/lib/tls/msg_cert_verify.cpp
-@@ -84,9 +84,13 @@ bool Certificate_Verify::verify(const X509_Certificate& cert,
-    std::pair<std::string, Signature_Format> format =
-       state.understand_sig_format(*key.get(), m_hash_algo, m_sig_algo);
+@@ -86,9 +86,13 @@ bool Certificate_Verify::verify(const X509_Certificate& cert,
+       state.parse_sig_format(*key.get(), m_hash_algo, m_sig_algo,
+                              true, policy);
  
 +#if 0
     PK_Verifier verifier(*key, format.first, format.second);
@@ -48,10 +48,10 @@ index be6c8a0..58f9a93 100644
  
  }
 diff --git a/src/lib/tls/msg_finished.cpp b/src/lib/tls/msg_finished.cpp
-index b837172..69a316f 100644
+index 2d6b119..ca5975d 100644
 --- a/src/lib/tls/msg_finished.cpp
 +++ b/src/lib/tls/msg_finished.cpp
-@@ -76,7 +76,11 @@ Finished::Finished(const std::vector<byte>& buf)
+@@ -73,7 +73,11 @@ Finished::Finished(const std::vector<byte>& buf) : m_verification_data(buf)
  bool Finished::verify(const Handshake_State& state,
                        Connection_Side side) const
     {
@@ -64,7 +64,7 @@ index b837172..69a316f 100644
  
  }
 diff --git a/src/lib/tls/tls_client.cpp b/src/lib/tls/tls_client.cpp
-index 623a522..00c033f 100644
+index 301c77c..1c9f312 100644
 --- a/src/lib/tls/tls_client.cpp
 +++ b/src/lib/tls/tls_client.cpp
 @@ -394,11 +394,13 @@ void Client::process_handshake_msg(const Handshake_State* active_state,
@@ -72,7 +72,7 @@ index 623a522..00c033f 100644
           const Public_Key& server_key = state.get_server_public_Key();
  
 +#if 0
-          if(!state.server_kex()->verify(server_key, state))
+          if(!state.server_kex()->verify(server_key, state, policy()))
              {
              throw TLS_Exception(Alert::DECRYPT_ERROR,
                                  "Bad signature on server key exchange");
